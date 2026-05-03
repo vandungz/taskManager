@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task Manager</title>
+    <link rel="stylesheet" href="base.css" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="page">
+    <main class="task-board" aria-label="Task Manager">
+        <header class="task-board__header">
+            <div class="task-board__header-top">
+                <div class="task-board__heading">
+                    <h1 class="task-board__title">Task Manager</h1>
+                    <p class="task-board__subtitle">Tuần này · 12 – 18 tháng 5</p>
+                </div>
+
+                <button class="btn btn--primary task-board__add" type="button">
+                    <span class="btn__icon" aria-hidden="true">+</span>
+                    <span class="btn__label">Thêm task</span>
+                </button>
+            </div>
+
+            <div class="task-board__progress">
+                <div class="task-board__progress-row">
+                    <span class="task-board__progress-label">Tiến độ tuần</span>
+                    <span class="task-board__progress-value">3 / 6 hoàn thành</span>
+                </div>
+
+                <div class="progress" role="progressbar" aria-label="Tiến độ tuần" aria-valuenow="50" aria-valuemin="0"
+                    aria-valuemax="100">
+                    <div class="progress__bar" style="width: 50%"></div>
+                </div>
+            </div>
+        </header>
+
+        <section class="task-board__controls" aria-label="Bộ lọc và sắp xếp">
+            <div class="task-board__controls-left">
+                <span class="task-board__controls-title">FILTER + SORT</span>
+            </div>
+
+            <div class="task-board__chips" role="group" aria-label="Bộ lọc">
+                <button class="chip chip--active" type="button">Tất cả</button>
+                <button class="chip chip--high" type="button">Cao</button>
+                <button class="chip chip--medium" type="button">Trung bình</button>
+                <button class="chip chip--low" type="button">Thấp</button>
+                <button class="chip chip--deadline" type="button">
+                    <span class="chip__icon" aria-hidden="true">↕</span>
+                    Deadline
+                </button>
+            </div>
+        </section>
+
+        <section class="task-board__list" aria-label="Danh sách task">
+            <article class="task task--high">
+                <label class="task__check">
+                    <input class="task__checkbox" type="checkbox" />
+                    <span class="task__checkbox-ui" aria-hidden="true"></span>
+                </label>
+
+                <div class="task__content">
+                    <div class="task__top">
+                        <h3 class="task__title">Viết báo cáo tổng kết</h3>
+                        <span class="badge badge--high">Cao</span>
+                    </div>
+
+                    <div class="task__meta">
+                        <span class="task__due task__due--overdue">Quá hạn · 10/05</span>
+                        <span class="badge badge--muted">Công việc</span>
+                    </div>
+                </div>
+
+                <button class="icon-btn task__menu" type="button" aria-label="Tùy chọn">•••</button>
+            </article>
+
+            <article class="task task--medium">
+                <label class="task__check">
+                    <input class="task__checkbox" type="checkbox" />
+                    <span class="task__checkbox-ui" aria-hidden="true"></span>
+                </label>
+
+                <div class="task__content">
+                    <div class="task__top">
+                        <h3 class="task__title">Ôn tập chương 3 &amp; 4</h3>
+                        <span class="badge badge--medium">Trung bình</span>
+                    </div>
+
+                    <div class="task__meta">
+                        <span class="task__due task__due--soon">Còn 2 ngày · 14/05</span>
+                        <span class="badge badge--muted">Học tập</span>
+                    </div>
+                </div>
+
+                <button class="icon-btn task__menu" type="button" aria-label="Tùy chọn">•••</button>
+            </article>
+
+            <article class="task task--low">
+                <label class="task__check">
+                    <input class="task__checkbox" type="checkbox" />
+                    <span class="task__checkbox-ui" aria-hidden="true"></span>
+                </label>
+
+                <div class="task__content">
+                    <div class="task__top">
+                        <h3 class="task__title">Đọc sách DOM Enlightenment</h3>
+                        <span class="badge badge--low">Thấp</span>
+                    </div>
+
+                    <div class="task__meta">
+                        <span class="task__due task__due--normal">Hạn: 18/05</span>
+                        <span class="badge badge--muted">Cá nhân</span>
+                    </div>
+                </div>
+
+                <button class="icon-btn task__menu" type="button" aria-label="Tùy chọn">•••</button>
+            </article>
+
+            <article class="task task--done">
+                <label class="task__check">
+                    <input class="task__checkbox" type="checkbox" checked />
+                    <span class="task__checkbox-ui" aria-hidden="true"></span>
+                </label>
+
+                <div class="task__content">
+                    <div class="task__top">
+                        <h3 class="task__title">Cài đặt môi trường VS Code</h3>
+                        <span class="badge badge--muted">Đã xong</span>
+                    </div>
+
+                    <div class="task__meta">
+                        <span class="task__due task__due--done">Hoàn thành · 11/05</span>
+                        <span class="badge badge--muted">Cá nhân</span>
+                    </div>
+                </div>
+
+                <button class="icon-btn task__menu" type="button" aria-label="Tùy chọn">•••</button>
+            </article>
+
+            <article class="task task--done">
+                <label class="task__check">
+                    <input class="task__checkbox" type="checkbox" checked />
+                    <span class="task__checkbox-ui" aria-hidden="true"></span>
+                </label>
+
+                <div class="task__content">
+                    <div class="task__top">
+                        <h3 class="task__title">Dọn dẹp inbox email</h3>
+                        <span class="badge badge--muted">Đã xong</span>
+                    </div>
+
+                    <div class="task__meta">
+                        <span class="task__due task__due--done">Hoàn thành · 09/05</span>
+                        <span class="badge badge--muted">Cá nhân</span>
+                    </div>
+                </div>
+
+                <button class="icon-btn task__menu" type="button" aria-label="Tùy chọn">•••</button>
+            </article>
+
+            <article class="task task--done">
+                <label class="task__check">
+                    <input class="task__checkbox" type="checkbox" checked />
+                    <span class="task__checkbox-ui" aria-hidden="true"></span>
+                </label>
+
+                <div class="task__content">
+                    <div class="task__top">
+                        <h3 class="task__title">Nộp bài tập tuần</h3>
+                        <span class="badge badge--muted">Đã xong</span>
+                    </div>
+
+                    <div class="task__meta">
+                        <span class="task__due task__due--done">Hoàn thành · 08/05</span>
+                        <span class="badge badge--muted">Học tập</span>
+                    </div>
+                </div>
+
+                <button class="icon-btn task__menu" type="button" aria-label="Tùy chọn">•••</button>
+            </article>
+        </section>
+
+        <footer class="task-board__footer">
+            <p class="task-board__summary">3 task chưa xong · 1 quá hạn</p>
+
+            <div class="task-board__actions">
+                <button class="btn btn--ghost" type="button">
+                    <span class="btn__icon" aria-hidden="true">↓</span>
+                    <span class="btn__label">Export</span>
+                </button>
+
+                <button class="btn btn--danger" type="button">
+                    <span class="btn__label">Xóa xong</span>
+                </button>
+            </div>
+        </footer>
+    </main>
+
+    <section class="modal " role="dialog" aria-modal="true" aria-labelledby="add-task-title" aria-label="Thêm task mới">
+        <div class="modal__backdrop" aria-hidden="true"></div>
+
+        <div class="modal__dialog">
+            <header class="modal__header">
+                <h2 class="modal__title" id="add-task-title">Thêm task mới</h2>
+            </header>
+
+            <div class="modal__body">
+                <form class="task-form" autocomplete="off">
+                    <div class="task-form__field task-form__field--full">
+                        <label class="task-form__label" for="task-name">TÊN TASK</label>
+                        <input class="control" id="task-name" name="name" type="text"
+                            placeholder="Nhập tên công việc..." />
+                    </div>
+
+                    <div class="task-form__grid">
+                        <div class="task-form__field">
+                            <label class="task-form__label" for="task-priority">MỨC ĐỘ ƯU TIÊN</label>
+                            <div id="priority-picker-container"></div>
+                        </div>
+
+                        <div class="task-form__field">
+                            <label class="task-form__label" for="task-deadline">DEADLINE</label>
+
+                            <div class="date-picker" aria-label="Chọn deadline">
+                                <div class="input input--icon">
+                                    <input class="input__control" id="task-deadline" name="deadline" type="text"
+                                        value="dd/mm/yyyy" />
+                                    <button class="input__icon" type="button" aria-label="Mở lịch">▦</button>
+                                </div>
+
+                                <div class="date-picker__panel" role="dialog" aria-label="Lịch">
+                                    <div class="date-picker__header">
+                                        <button class="date-picker__nav" type="button"
+                                            aria-label="Tháng trước">‹</button>
+                                        <div class="date-picker__month">Tháng 5, 2025</div>
+                                        <button class="date-picker__nav" type="button" aria-label="Tháng sau">›</button>
+                                    </div>
+
+                                    <div class="date-picker__weekdays" aria-hidden="true">
+                                        <span class="date-picker__weekday">T2</span>
+                                        <span class="date-picker__weekday">T3</span>
+                                        <span class="date-picker__weekday">T4</span>
+                                        <span class="date-picker__weekday">T5</span>
+                                        <span class="date-picker__weekday">T6</span>
+                                        <span class="date-picker__weekday">T7</span>
+                                        <span class="date-picker__weekday">CN</span>
+                                    </div>
+
+                                    <div class="date-picker__grid" role="grid" aria-label="Ngày">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="task-form__field task-form__field--full">
+                        <span class="task-form__label">NHÃN</span>
+                        <div class="tag-group" role="group" aria-label="Nhãn">
+                            <button class="tag tag--active" type="button">
+                                <span class="tag__icon" aria-hidden="true">✓</span>
+                                Học tập
+                            </button>
+                            <button class="tag" type="button">Công việc</button>
+                            <button class="tag" type="button">Cá nhân</button>
+                        </div>
+                    </div>
+
+                    <div class="task-form__actions">
+                        <button class="btn task-form__btn task-form__btn--cancel" type="button">Huỷ</button>
+                        <button class="btn btn--success task-form__btn" type="submit">Lưu task</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>
