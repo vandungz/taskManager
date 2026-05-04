@@ -1,307 +1,260 @@
-import { resetDeadlinePickerToToday } from "./calendar.js";
-import { getSelectedPriority, renderPriorityPicker } from "./priority.js";
+/**
+ * script.js — Entry point của ứng dụng
+ *
+ * File này đóng vai trò "điều phối viên" (orchestrator):
+ *   - Khởi tạo các module
+ *   - Quản lý state chính (tasks, filter, sort, editingTaskId)
+ *   - Gắn sự kiện cho các nút trên board (Add, Filter chips, Delete done)
+ *   - Gọi lại render khi state thay đổi
+ *
+ * Mỗi module đảm nhận một trách nhiệm riêng (Single Responsibility):
+ *   utils.js    — hàm tiện ích thuần (date, DOM helper)
+ *   storage.js  — đọc/ghi localStorage
+ *   tags.js     — UI chọn nhãn
+ *   modal.js    — mở/đóng dialog
+ *   calendar.js — date picker
+ *   priority.js — priority picker
+ *   tasks.js    — render task list, filter, sort, popup
+ */
 
-// Thêm sự kiện để mở modal
-const openModalBtn = document.querySelector(".task-board__add");
-const closeModalBtn = document.querySelector(".task-form__btn--cancel");
-const submitModalBtn = document.querySelector(".btn--success");
-const modal = document.querySelector(".modal");
-const modalBackdrop = document.querySelector(".modal__backdrop");
+import { setDeadlinePickerDate, resetDeadlinePickerToToday } from "./calendar.js";
+import { getSelectedPriority, setSelectedPriority, renderPriorityPicker } from "./priority.js";
+import { getSelectedTag, initTags, setActiveTag, resetTag } from "./tags.js";
+import { openModal, closeModal, initModalBackdropClose } from "./modal.js";
+import { loadTasksFromStorage, saveTasksToStorage } from "./storage.js";
+import { renderTasks, updateProgress, updateSummary } from "./tasks.js";
 
-openModalBtn.addEventListener("click", (e) => {
-    // Ngăn chặn hành vi mặc định của nút (nếu có)
-    e.preventDefault();
-    resetFormToDefault();
-    modal.classList.remove("modal--hidden");
-});
+// --- APP STATE ---
+// State tập trung tại entry point để dễ theo dõi luồng dữ liệu.
+// Nguyên tắc: chỉ tasks.js đọc state để render, script.js cập nhật state rồi gọi refresh().
 
-closeModalBtn.addEventListener("click", (e) => {
-    // Ngăn chặn hành vi mặc định của nút (nếu có)
-    e.preventDefault();
-    modal.classList.add("modal--hidden");
-    resetFormToDefault();
-});
+let tasks = [];
+let currentFilter = "all";    // "all" | "high" | "medium" | "low"
+let currentSort = "newest";   // "newest" | "deadline"
+let editingTaskId = null;     // null = thêm mới, number = đang chỉnh sửa
 
-// Đóng modal khi nhấp vào bên ngoài nội dung modal hoặc khi nhấp vào nút submit (nếu muốn giữ modal mở sau khi submit, bạn có thể bỏ phần này)
-window.addEventListener("click", (e) => {
-    // Chỉ đóng khi bấm vào nền xám (backdrop)
-    if (e.target === modalBackdrop) {
-        modal.classList.add("modal--hidden");
-        resetFormToDefault();
-    }
-});
+// --- RENDER CYCLE ---
 
-// --- STATE QUẢN LÝ ---
-let tasks = []; // Mảng chứa toàn bộ task
-let currentFilter = "all"; // Trạng thái bộ lọc hiện tại
-let selectedTag = "Học tập";
-
-// --- LOCAL STORAGE ---
-const TASKS_STORAGE_KEY = "taskManager.tasks.v1";
-
-function normalizeTask(raw) {
-    if (!raw || typeof raw !== "object") return null;
-
-    const id = typeof raw.id === "number" ? raw.id : Number(raw.id);
-    if (!Number.isFinite(id)) return null;
-
-    const name = typeof raw.name === "string" ? raw.name : "";
-    const priority = ["high", "medium", "low"].includes(raw.priority) ? raw.priority : "medium";
-    const tag = typeof raw.tag === "string" ? raw.tag : "Học tập";
-    const deadline = typeof raw.deadline === "string" ? raw.deadline : "";
-    const isDone = Boolean(raw.isDone);
-
-    return { id, name, priority, tag, deadline, isDone };
+/**
+ * Hàm render tổng: gọi sau mọi thay đổi state.
+ * "Single source of truth": mọi cập nhật UI đều đi qua đây,
+ * đảm bảo UI luôn phản ánh đúng state hiện tại.
+ */
+function refresh() {
+	renderTasks({
+		tasks,
+		filter: currentFilter,
+		sort: currentSort,
+		onToggle: toggleTaskStatus,
+		onEdit: openEditModal,
+		onDelete: deleteTask,
+	});
+	updateProgress(tasks);
+	updateSummary(tasks);
 }
 
-function loadTasksFromStorage() {
-    try {
-        const raw = localStorage.getItem(TASKS_STORAGE_KEY);
-        if (!raw) return;
+// --- FORM UTILITIES ---
 
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) return;
+/**
+ * Reset toàn bộ form về trạng thái ban đầu (thêm task mới).
+ * Gọi sau khi submit thành công hoặc khi hủy/đóng modal.
+ */
+function resetForm() {
+	const nameInput = document.querySelector("#task-name");
+	if (nameInput) nameInput.value = "";
 
-        tasks = parsed.map(normalizeTask).filter(Boolean);
-    } catch {
-        // Nếu localStorage bị chặn/corrupt data thì bỏ qua
-    }
+	resetDeadlinePickerToToday();
+	resetTag();
 }
 
-function saveTasksToStorage() {
-    try {
-        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
-    } catch {
-        // localStorage có thể bị chặn ở một số môi trường
-    }
+/**
+ * Lấy dữ liệu từ form và validate.
+ * Trả về object task nếu hợp lệ, null nếu không.
+ *
+ * @returns {{ name, priority, tag, deadline }|null}
+ */
+function getFormData() {
+	const nameInput = document.querySelector("#task-name");
+	const name = nameInput?.value.trim() ?? "";
+
+	if (!name) {
+		alert("Vui lòng nhập tên công việc!");
+		nameInput?.focus();
+		return null;
+	}
+
+	return {
+		name,
+		priority: getSelectedPriority(),
+		tag: getSelectedTag(),
+		deadline: document.querySelector("#task-deadline")?.value ?? "",
+	};
 }
 
-function startOfDay(date) {
-    const clone = new Date(date);
-    clone.setHours(0, 0, 0, 0);
-    return clone;
+// --- TASK ACTIONS ---
+
+/**
+ * Toggle trạng thái hoàn thành của một task.
+ * Sau khi thay đổi: lưu storage → refresh UI.
+ *
+ * @param {number} id
+ */
+function toggleTaskStatus(id) {
+	// .find() trả về tham chiếu đến object trong mảng (không phải bản sao)
+	// → gán task.isDone sẽ thay đổi trực tiếp phần tử trong mảng tasks
+	const task = tasks.find((t) => t.id === id);
+	if (task) {
+		task.isDone = !task.isDone;
+		saveTasksToStorage(tasks);
+		refresh();
+	}
 }
 
-function parseViDate(dateString) {
-    const str = String(dateString ?? "").trim();
-    const m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (!m) return null;
+/**
+ * Mở modal chỉnh sửa task, điền sẵn dữ liệu cũ vào form.
+ *
+ * @param {number} taskId
+ */
+function openEditModal(taskId) {
+	const task = tasks.find((t) => t.id === taskId);
+	if (!task) return;
 
-    const day = Number(m[1]);
-    const month = Number(m[2]);
-    const year = Number(m[3]);
+	editingTaskId = taskId;
 
-    const d = new Date(year, month - 1, day);
-    if (Number.isNaN(d.getTime())) return null;
-    return startOfDay(d);
+	// Điền dữ liệu cũ vào các picker
+	const nameInput = document.querySelector("#task-name");
+	if (nameInput) nameInput.value = task.name;
+
+	// Priority: set state trước, rồi render lại picker để phản ánh state mới
+	setSelectedPriority(task.priority);
+	renderPriorityPicker();
+
+	setDeadlinePickerDate(task.deadline);
+	setActiveTag(task.tag);
+
+	openModal("Chỉnh sửa task");
 }
 
-// --- TRUY XUẤT DOM ---
-const taskListContainer = document.querySelector(".task-board__list");
+/**
+ * Xóa một task sau khi xác nhận.
+ *
+ * confirm() hiển thị hộp thoại xác nhận của trình duyệt, trả về boolean.
+ * Trong ứng dụng production, nên thay bằng custom modal để kiểm soát UI tốt hơn.
+ *
+ * @param {number} taskId
+ */
+function deleteTask(taskId) {
+	const task = tasks.find((t) => t.id === taskId);
+	if (!task) return;
+
+	if (confirm(`Xóa task "${task.name}"?\n\nHành động này không thể hoàn tác.`)) {
+		// .filter() trả về mảng MỚI (không thay đổi mảng gốc)
+		tasks = tasks.filter((t) => t.id !== taskId);
+		saveTasksToStorage(tasks);
+		refresh();
+	}
+}
+
+// --- MODAL CLOSE HELPER ---
+
+/**
+ * Đóng modal và dọn dẹp state liên quan.
+ * Dùng chung cho: nút Huỷ, click backdrop, sau khi submit.
+ */
+function handleCloseModal() {
+	editingTaskId = null;
+	closeModal(resetForm);
+}
+
+// --- FORM SUBMIT ---
+
 const taskForm = document.querySelector(".task-form");
-const deleteDoneBtn = document.querySelector(".btn--danger"); // Nút "Xóa xong"
-const filterChips = document.querySelectorAll(".chip"); // Các nút bộ lọc[cite: 8]
 
-// --- KHỞI TẠO TAGS ---
-function initTags() {
-    const tagButtons = document.querySelectorAll(".tag-group .tag");
-
-    tagButtons.forEach(btn => {
-        btn.addEventListener("click", () => {
-            // 1. Xóa trạng thái active cũ
-            tagButtons.forEach(b => {
-                b.classList.remove("tag--active");
-                const icon = b.querySelector(".tag__icon");
-                if (icon) icon.remove(); // Xóa dấu tích cũ
-            });
-
-            // 2. Kích hoạt tag mới
-            btn.classList.add("tag--active");
-
-            // 3. Thêm dấu tích (icon) bằng JS[cite: 15]
-            const checkIcon = document.createElement("span");
-            checkIcon.className = "tag__icon";
-            checkIcon.setAttribute("aria-hidden", "true");
-            checkIcon.textContent = "✓";
-            btn.prepend(checkIcon);
-
-            // 4. Lưu giá trị tag đang chọn
-            selectedTag = btn.textContent.replace("✓", "").trim();
-        });
-    });
-}
-
-// --- HÀM RENDER CHÍNH ---
-function renderTasks() {
-    const taskListContainer = document.querySelector(".task-board__list");
-    if (!taskListContainer) return;
-
-    const filteredTasks = tasks.filter(task =>
-        currentFilter === "all" ? true : task.priority === currentFilter
-    );
-
-    taskListContainer.innerHTML = filteredTasks.map(task => `
-        <article class="task task--${task.priority} ${task.isDone ? 'task--done' : ''}" data-id="${task.id}">
-            <label class="task__check">
-                <input class="task__checkbox" type="checkbox" ${task.isDone ? 'checked' : ''} onchange="toggleTaskStatus(${task.id})">
-                <span class="task__checkbox-ui" aria-hidden="true"></span>
-            </label>
-            <div class="task__content">
-                <div class="task__top">
-                    <h3 class="task__title">${task.name}</h3>
-                    <span class="badge badge--${task.isDone ? 'muted' : task.priority}">
-                        ${task.isDone ? 'Đã xong' : task.priority}
-                    </span>
-                </div>
-                <div class="task__meta">
-                    <span class="task__due">Hạn: ${task.deadline}</span>
-                    <span class="badge badge--muted">${task.tag}</span> <!-- Hiển thị Nhãn ở đây -->
-                </div>
-            </div>
-        </article>
-    `).join('');
-
-    updateProgress();
-    updateSummary();
-}
-
-// --- KHỞI CHẠY HỆ THỐNG ---
-document.addEventListener("DOMContentLoaded", () => {
-    loadTasksFromStorage();
-    renderPriorityPicker(); // Vẽ dropdown ưu tiên
-    initTags(); // Kích hoạt chọn nhãn
-    renderTasks();
-});
-
-// --- TÍNH NĂNG XỬ LÝ ---
-
-// 1. Thêm task mới
 taskForm?.addEventListener("submit", (e) => {
-    e.preventDefault();
+	e.preventDefault(); // Ngăn trình duyệt reload trang (hành vi mặc định của form)
 
-    const nameInput = document.querySelector("#task-name");
-    const taskName = nameInput.value.trim();
+	const data = getFormData();
+	if (!data) return; // Validation failed
 
-    // 1. Kiểm tra ràng buộc đầu tiên
-    if (!taskName) {
-        alert("Vui lòng nhập tên công việc!");
-        nameInput.focus();
-        return; // Dừng lại nếu không có tên
-    }
+	if (editingTaskId !== null) {
+		// EDIT MODE: tìm task và cập nhật trực tiếp
+		const task = tasks.find((t) => t.id === editingTaskId);
+		if (task) Object.assign(task, data); // Object.assign() copy các property của data vào task
+		editingTaskId = null;
+	} else {
+		// ADD MODE: tạo task mới với id là timestamp hiện tại
+		// Date.now() trả về số ms từ Unix epoch → đảm bảo unique nếu không tạo quá nhanh
+		tasks.push({ id: Date.now(), isDone: false, ...data });
+	}
 
-    // 2. Nếu hợp lệ, tiến hành tạo object task mới
-    const newTask = {
-        id: Date.now(),
-        name: taskName,
-        priority: getSelectedPriority(),
-        tag: selectedTag,
-        deadline: document.querySelector("#task-deadline").value,
-        isDone: false
-    };
-
-    // 3. Cập nhật dữ liệu và giao diện
-    tasks.push(newTask);
-    saveTasksToStorage();
-    renderTasks();
-
-    // 4. Đóng modal và reset form về mặc định
-    modal.classList.add("modal--hidden");
-    resetFormToDefault();
+	saveTasksToStorage(tasks);
+	refresh();
+	handleCloseModal();
 });
 
-// 2. Xóa các task đã hoàn thành (Delete Done)
+// --- BOARD CONTROLS ---
+
+// Nút "Thêm task"
+const openModalBtn = document.querySelector(".task-board__add");
+openModalBtn?.addEventListener("click", () => {
+	editingTaskId = null;
+	resetForm();
+	openModal();
+});
+
+// Nút "Huỷ" trong form
+const closeModalBtn = document.querySelector(".task-form__btn--cancel");
+closeModalBtn?.addEventListener("click", handleCloseModal);
+
+// Click backdrop để đóng modal
+initModalBackdropClose(handleCloseModal);
+
+// Nút "Xóa xong"
+const deleteDoneBtn = document.querySelector(".btn--danger");
 deleteDoneBtn?.addEventListener("click", () => {
-    tasks = tasks.filter(task => !task.isDone); // Chỉ giữ lại task chưa xong
-    saveTasksToStorage();
-    renderTasks();
+	tasks = tasks.filter((t) => !t.isDone);
+	saveTasksToStorage(tasks);
+	refresh();
 });
 
-// 3. Xử lý bộ lọc (Filter)[cite: 8, 11]
-filterChips.forEach(chip => {
-    chip.addEventListener("click", () => {
-        // Cập nhật UI cho chip
-        filterChips.forEach(c => c.classList.remove("chip--active"));
-        chip.classList.add("chip--active");
+// Filter chips
+const filterChips = document.querySelectorAll(".chip");
+filterChips.forEach((chip) => {
+	chip.addEventListener("click", () => {
+		// Cập nhật trạng thái active trên tất cả chips
+		filterChips.forEach((c) => c.classList.remove("chip--active"));
+		chip.classList.add("chip--active");
 
-        // Lấy giá trị lọc (ví dụ: chip--high -> high)
-        const filterValue = chip.classList.contains("chip--high") ? "high" :
-            chip.classList.contains("chip--medium") ? "medium" :
-                chip.classList.contains("chip--low") ? "low" : "all";
+		if (chip.classList.contains("chip--deadline")) {
+			// Nút Deadline: toggle chế độ sort, không thay đổi filter
+			currentSort = currentSort === "deadline" ? "newest" : "deadline";
+		} else {
+			// Các nút filter: reset sort về mặc định
+			currentSort = "newest";
+			currentFilter =
+				chip.classList.contains("chip--high")   ? "high"   :
+				chip.classList.contains("chip--medium") ? "medium" :
+				chip.classList.contains("chip--low")    ? "low"    : "all";
+		}
 
-        currentFilter = filterValue;
-        renderTasks();
-    });
+		refresh();
+	});
 });
 
-// 4. Thay đổi trạng thái Task (Dùng cho sự kiện onchange)
-window.toggleTaskStatus = (id) => {
-    const task = tasks.find(t => t.id === id);
-    if (task) {
-        task.isDone = !task.isDone;
-        saveTasksToStorage();
-        renderTasks();
-    }
-};
+// --- BOOTSTRAP ---
 
-// 5. Cập nhật thanh tiến độ (UI Progress)[cite: 8, 11]
-function updateProgress() {
-    const doneCount = tasks.filter(t => t.isDone).length;
-    const total = tasks.length;
-    const progressPercent = total === 0 ? 0 : (doneCount / total) * 100;
-
-    const progressBar = document.querySelector(".progress__bar");
-    const progressValLabel = document.querySelector(".task-board__progress-value");
-
-    if (progressBar) progressBar.style.width = `${progressPercent}%`;
-    if (progressValLabel) progressValLabel.textContent = `${doneCount} / ${total} hoàn thành`;
-}
-
-
-// 6. Cập nhật lại hàm reset form sau khi submit để quay về mặc định
-function resetFormToDefault() {
-    // 1. Reset text input[cite: 20]
-    const nameInput = document.querySelector("#task-name");
-    if (nameInput) nameInput.value = "";
-
-    // 2. Đưa Deadline/Calendar về ngày hôm nay
-    resetDeadlinePickerToToday();
-
-    // 3. Reset Tags về "Học tập" và cập nhật UI[cite: 20]
-    selectedTag = "Học tập";
-    const tagButtons = document.querySelectorAll(".tag-group .tag");
-
-    tagButtons.forEach((btn, index) => {
-        // Xóa sạch trạng thái active và icon cũ[cite: 20]
-        btn.classList.remove("tag--active");
-        const oldIcon = btn.querySelector(".tag__icon");
-        if (oldIcon) oldIcon.remove();
-
-        // Thiết lập lại cho tag đầu tiên[cite: 20]
-        if (index === 0) {
-            btn.classList.add("tag--active");
-            const checkIcon = document.createElement("span");
-            checkIcon.className = "tag__icon";
-            checkIcon.textContent = "✓";
-            btn.prepend(checkIcon);
-        }
-    });
-}
-
-// 7. Cập nhật số task chưa xong và số task quá hạn
-function updateSummary() {
-    const summaryEl = document.querySelector(".task-board__summary");
-    if (!summaryEl) return;
-
-    const today = startOfDay(new Date());
-
-    const unfinishedCount = tasks.filter(t => !t.isDone).length;
-    const overdueCount = tasks.filter(t => {
-        if (t.isDone) return false;
-        const deadlineDate = parseViDate(t.deadline);
-        return deadlineDate ? deadlineDate < today : false;
-    }).length;
-
-    summaryEl.textContent = `${unfinishedCount} task chưa xong · ${overdueCount} quá hạn`;
-}
-
-export { modal };
+/**
+ * DOMContentLoaded: kích hoạt khi HTML đã parse xong, trước khi ảnh/CSS load xong.
+ * Dùng để chạy JS cần thao tác DOM ngay khi có thể.
+ *
+ * Thứ tự khởi tạo quan trọng:
+ *   1. Load data từ storage
+ *   2. Khởi tạo các UI component (picker, tags)
+ *   3. Render lần đầu
+ */
+document.addEventListener("DOMContentLoaded", () => {
+	tasks = loadTasksFromStorage();
+	renderPriorityPicker();
+	initTags();
+	refresh();
+});
