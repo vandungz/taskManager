@@ -1,25 +1,10 @@
-/**
- * tasks.js — Render danh sách task, popup menu, filter & sort
- *
- * Chịu trách nhiệm:
- *   - Vẽ HTML cho từng task
- *   - Xử lý filter (all / high / medium / low) và sort (newest / deadline)
- *   - Popup "Edit / Delete" cho mỗi task
- *   - Cập nhật progress bar và summary
- */
 
 import { getDaysRemaining, parseViDate, startOfDay } from "./utils.js";
 
 // --- MODULE STATE ---
-
 let activePopup = null; // Tham chiếu đến popup đang mở (nếu có)
 
 // --- POPUP ---
-
-/**
- * Đóng và xóa popup hiện tại khỏi DOM.
- * Gọi trước khi mở popup mới để tránh nhiều popup cùng tồn tại.
- */
 function closeActivePopup() {
 	if (activePopup) {
 		// .remove() xóa phần tử khỏi DOM (không cần biết parent là gì)
@@ -28,21 +13,7 @@ function closeActivePopup() {
 	}
 }
 
-/**
- * Tạo và hiển thị popup menu (Edit / Delete) bên cạnh nút trigger.
- *
- * Popup được append vào <body> thay vì bên trong task card,
- * để tránh bị clip bởi overflow:hidden của parent.
- *
- * getBoundingClientRect() trả về vị trí và kích thước của element
- * tương đối với viewport (cửa sổ trình duyệt, không phải trang).
- * window.scrollY cộng thêm để tính vị trí tuyệt đối trên trang.
- *
- * @param {HTMLButtonElement} triggerBtn — nút "•••" đã click
- * @param {number} taskId
- * @param {Function} onEdit   — callback(taskId)
- * @param {Function} onDelete — callback(taskId)
- */
+
 function showTaskPopup(triggerBtn, taskId, onEdit, onDelete) {
 	const popup = document.createElement("div");
 	popup.className = "task-popup";
@@ -85,31 +56,12 @@ function showTaskPopup(triggerBtn, taskId, onEdit, onDelete) {
 document.addEventListener("click", closeActivePopup);
 
 // --- BADGE LABEL ---
-
-/**
- * Trả về text cho badge ưu tiên.
- *
- * @param {string} priority
- * @returns {string}
- */
 function getPriorityLabel(priority) {
 	const labels = { high: "Cao", medium: "Trung bình", low: "Thấp" };
 	return labels[priority] ?? priority;
 }
 
 // --- RENDER TASK ITEM ---
-
-/**
- * Tạo HTML string cho một task.
- * Template literal (backtick) cho phép nhúng biến JS vào chuỗi HTML.
- *
- * Chú ý bảo mật: task.name được nhúng trực tiếp vào innerHTML.
- * Trong ứng dụng thực tế cần escape HTML để tránh XSS.
- * Ở đây dữ liệu đến từ input của chính user nên rủi ro thấp.
- *
- * @param {object} task
- * @returns {string} HTML string
- */
 function buildTaskHTML(task) {
 	const remaining = !task.isDone ? getDaysRemaining(task.deadline) : null;
 
@@ -147,19 +99,6 @@ function buildTaskHTML(task) {
 }
 
 // --- FILTER & SORT ---
-
-/**
- * Lọc và sắp xếp danh sách tasks theo filter + sort hiện tại.
- *
- * Sort logic:
- *   - Task đã xong luôn xuống cuối (a.isDone - b.isDone: false=0, true=1)
- *   - Trong nhóm chưa xong: theo deadline hoặc id (thời điểm tạo)
- *
- * @param {Array} tasks
- * @param {string} filter — "all" | "high" | "medium" | "low"
- * @param {string} sort   — "newest" | "deadline"
- * @returns {Array}
- */
 export function getFilteredAndSorted(tasks, filter, sort) {
 	return tasks
 		.filter((task) => filter === "all" || task.priority === filter)
@@ -185,25 +124,6 @@ export function getFilteredAndSorted(tasks, filter, sort) {
 }
 
 // --- MAIN RENDER ---
-
-/**
- * Render toàn bộ danh sách task vào container.
- * Sau khi render, gắn lại sự kiện cho các phần tử động.
- *
- * Tại sao phải gắn lại sự kiện? Vì innerHTML = "..." xóa toàn bộ DOM cũ,
- * bao gồm cả các event listener đã gắn lên các phần tử con.
- *
- * Giải pháp tốt hơn (nâng cao): Event Delegation — gắn listener một lần
- * trên container, dùng e.target để xác định phần tử được click.
- *
- * @param {object} params
- * @param {Array}    params.tasks
- * @param {string}   params.filter
- * @param {string}   params.sort
- * @param {Function} params.onToggle  — callback(taskId) khi tick checkbox
- * @param {Function} params.onEdit    — callback(taskId) khi click Edit
- * @param {Function} params.onDelete  — callback(taskId) khi click Delete
- */
 export function renderTasks({ tasks, filter, sort, onToggle, onEdit, onDelete }) {
 	const container = document.querySelector(".task-board__list");
 	if (!container) return;
@@ -240,12 +160,6 @@ export function renderTasks({ tasks, filter, sort, onToggle, onEdit, onDelete })
 }
 
 // --- PROGRESS & SUMMARY ---
-
-/**
- * Cập nhật thanh tiến độ và label "x/y hoàn thành".
- *
- * @param {Array} tasks
- */
 export function updateProgress(tasks) {
 	const doneCount = tasks.filter((t) => t.isDone).length;
 	const total = tasks.length;
@@ -259,11 +173,6 @@ export function updateProgress(tasks) {
 	if (progressLabel) progressLabel.textContent = `${doneCount} / ${total} hoàn thành`;
 }
 
-/**
- * Cập nhật text tóm tắt footer: "X task chưa xong · Y quá hạn".
- *
- * @param {Array} tasks
- */
 export function updateSummary(tasks) {
 	const summaryEl = document.querySelector(".task-board__summary");
 	if (!summaryEl) return;

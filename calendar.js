@@ -254,11 +254,7 @@ export function resetDeadlinePickerToToday() {
 	renderCalendar();
 }
 
-// --- BOOTSTRAP ---
-// Kiểm tra trạng thái DOM trước khi khởi tạo.
-// "loading": HTML chưa parse xong → chờ DOMContentLoaded
-// "interactive"/"complete": DOM đã sẵn sàng → gọi ngay
-if (document.readyState === "loading") {
+if (document.readyState === "loading") {	
 	document.addEventListener("DOMContentLoaded", initCalendar);
 } else {
 	initCalendar();

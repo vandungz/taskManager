@@ -1,21 +1,6 @@
-/**
- * priority.js — Priority Picker tùy chỉnh (custom select)
- *
- * Xây dựng một dropdown chọn mức độ ưu tiên bằng JS thuần,
- * thay thế thẻ <select> mặc định của HTML để có thể style tùy ý.
- *
- * Cấu trúc DOM được tạo ra:
- *   .select
- *     button.select__trigger  ← nút hiển thị giá trị đang chọn
- *     input[hidden]           ← giữ giá trị để submit form
- *     .select__menu           ← danh sách option
- *       button.select__option (x3)
- */
-
 import { createElement } from "./utils.js";
 
 // --- CONFIG ---
-
 const PRIORITY_OPTIONS = [
 	{ id: "high",   label: "Cao" },
 	{ id: "medium", label: "Trung bình" },
@@ -23,22 +8,12 @@ const PRIORITY_OPTIONS = [
 ];
 
 // --- MODULE STATE ---
-
 let selectedPriority = "medium";
-
-// Lưu hàm cleanup để gỡ document-level listeners khi render lại
-// (tránh tích lũy nhiều listener giống nhau trên document)
 let cleanupDocumentListeners = null;
 
 // --- GETTERS / SETTERS ---
-
 export const getSelectedPriority = () => selectedPriority;
 
-/**
- * Set ưu tiên từ bên ngoài (dùng trước khi gọi renderPriorityPicker để edit task).
- *
- * @param {string} id — "high" | "medium" | "low"
- */
 export function setSelectedPriority(id) {
 	if (PRIORITY_OPTIONS.some((o) => o.id === id)) {
 		selectedPriority = id;
@@ -46,36 +21,17 @@ export function setSelectedPriority(id) {
 }
 
 // --- HELPERS ---
-
-/**
- * Trả về class CSS tương ứng với mức ưu tiên để tô màu trigger.
- *
- * @param {string} id
- * @returns {string}
- */
 function getToneClass(id) {
 	const map = { high: "select--high", medium: "select--medium", low: "select--low" };
 	return map[id] ?? "";
 }
 
-/**
- * Đóng dropdown menu.
- *
- * @param {HTMLElement} selectEl
- * @param {HTMLButtonElement} triggerEl
- */
 function closeMenu(selectEl, triggerEl) {
 	selectEl.classList.remove("select--open");
 	// aria-expanded: thuộc tính ARIA thông báo cho screen reader biết trạng thái dropdown
 	triggerEl.setAttribute("aria-expanded", "false");
 }
 
-/**
- * Cập nhật giao diện khi chọn một option mới.
- * Tham số được nhóm vào object để tránh danh sách tham số dài.
- *
- * @param {{ selectEl, triggerValueEl, hiddenInputEl, optionButtons, newPriority }}
- */
 function applySelection({ selectEl, triggerValueEl, hiddenInputEl, optionButtons, newPriority }) {
 	selectedPriority = newPriority;
 
@@ -100,12 +56,6 @@ function applySelection({ selectEl, triggerValueEl, hiddenInputEl, optionButtons
 }
 
 // --- BUILD DOM ---
-
-/**
- * Tạo nút trigger (phần luôn hiển thị của dropdown).
- *
- * @returns {{ triggerEl, valueEl }}
- */
 function buildTrigger() {
 	const triggerEl = createElement("button", {
 		className: "select__trigger",
@@ -138,12 +88,6 @@ function buildTrigger() {
 	return { triggerEl, valueEl };
 }
 
-/**
- * Tạo các option button bên trong menu.
- *
- * @param {Function} onSelect — callback khi một option được chọn
- * @returns {HTMLButtonElement[]}
- */
 function buildOptionButtons(onSelect) {
 	return PRIORITY_OPTIONS.map((option) => {
 		const btn = createElement("button", {
@@ -176,15 +120,6 @@ function buildOptionButtons(onSelect) {
 }
 
 // --- MAIN RENDER ---
-
-/**
- * Render (hoặc re-render) Priority Picker vào container.
- *
- * Re-render cần thiết khi: mở form edit với ưu tiên khác → gọi setSelectedPriority() + renderPriorityPicker()
- *
- * Pattern "render lại toàn bộ" đơn giản hơn "update từng phần" khi component nhỏ.
- * Với component lớn hơn, nên update từng phần để tránh mất focus/scroll position.
- */
 export function renderPriorityPicker() {
 	const container = document.querySelector("#priority-picker-container");
 	if (!container) return;

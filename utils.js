@@ -1,20 +1,3 @@
-/**
- * utils.js — Các hàm tiện ích dùng chung (pure functions, không phụ thuộc DOM)
- *
- * Pure function: hàm chỉ nhận input → trả output, không đọc/ghi biến ngoài.
- * Lợi ích: dễ test, dễ tái sử dụng ở bất kỳ file nào.
- */
-
-// --- DATE UTILITIES ---
-
-/**
- * Chuẩn hóa một Date về 00:00:00 của ngày đó.
- * Mục đích: khi so sánh ngày (không quan tâm giờ), cần xóa phần giờ/phút/giây
- * để tránh sai lệch do múi giờ hay thời điểm trong ngày.
- *
- * @param {Date} date
- * @returns {Date}
- */
 export function startOfDay(date) {
 	// Tạo bản sao để không làm thay đổi object gốc (immutability)
 	const clone = new Date(date);
@@ -22,22 +5,6 @@ export function startOfDay(date) {
 	return clone;
 }
 
-/**
- * Chuyển chuỗi ngày định dạng "dd/mm/yyyy" thành đối tượng Date.
- * Trả về null nếu chuỗi không hợp lệ.
- *
- * Regex /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/ giải thích:
- *   ^          — bắt đầu chuỗi
- *   (\d{1,2})  — nhóm 1 hoặc 2 chữ số (ngày)
- *   \/         — dấu / (phải escape vì / có nghĩa đặc biệt trong regex)
- *   (\d{1,2})  — nhóm tháng
- *   \/
- *   (\d{4})    — nhóm 4 chữ số (năm)
- *   $          — kết thúc chuỗi
- *
- * @param {string} dateString — "10/05/2025"
- * @returns {Date|null}
- */
 export function parseViDate(dateString) {
 	const str = String(dateString ?? "").trim();
 	const m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -56,13 +23,6 @@ export function parseViDate(dateString) {
 	return startOfDay(d);
 }
 
-/**
- * Tính số ngày còn lại đến deadline.
- * Trả về object { label, type } để render UI, hoặc null nếu không có deadline.
- *
- * @param {string} deadlineString
- * @returns {{ label: string, type: string }|null}
- */
 export function getDaysRemaining(deadlineString) {
 	const deadline = parseViDate(deadlineString);
 	if (!deadline) return null;
@@ -79,24 +39,10 @@ export function getDaysRemaining(deadlineString) {
 }
 
 // --- DOM UTILITIES ---
-
-/**
- * Tạo một phần tử DOM với className và textContent.
- * Hàm factory nhỏ này giúp tránh lặp lại document.createElement + gán thuộc tính.
- *
- * @param {string} tag — tên thẻ HTML ("div", "button", "span", ...)
- * @param {object} options
- * @param {string} [options.className]
- * @param {string} [options.text]
- * @param {Record<string, string>} [options.attrs] — các thuộc tính bổ sung
- * @returns {HTMLElement}
- */
 export function createElement(tag, { className = "", text = "", attrs = {} } = {}) {
 	const el = document.createElement(tag);
 	if (className) el.className = className;
 
-	// Dùng textContent thay innerHTML để tránh XSS
-	// XSS (Cross-Site Scripting): tấn công bằng cách chèn code HTML/JS vào trang
 	if (text) el.textContent = text;
 
 	// Object.entries() trả về mảng [key, value] của object
